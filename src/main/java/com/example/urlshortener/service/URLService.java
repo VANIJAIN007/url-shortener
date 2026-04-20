@@ -1,5 +1,8 @@
 package com.example.urlshortener.service;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.example.urlshortener.entity.URLEntity;
@@ -10,6 +13,8 @@ public class URLService {
 @Autowired
 private URLRepo urlRepo;
 
+@Autowired
+private StringRedisTemplate stringRedisTemplate;
 public String createShortURL(String longURL) {
 	URLEntity url=new URLEntity();
 	url.setLongURLString(longURL);
@@ -17,6 +22,7 @@ public String createShortURL(String longURL) {
 	String shortcodeString=encode(url.getId());
 	url.setShortCodeString(shortcodeString);
 	urlRepo.save(url);
+	stringRedisTemplate.opsForValue().set(shortcodeString, longURL,1,TimeUnit.HOURS);
 	return shortcodeString;
 	
 }
@@ -32,7 +38,14 @@ private String encode(Long id) {
 	return sBuilder.reverse().toString();
 }
 public String getLongURL(String code) {
-	 return urlRepo.findByShortCodeString(code).map(URLEntity::getLongURLString).orElseThrow(()->new RuntimeException("Long url not found"));
-	
+	String cacheURL = stringRedisTemplate.opsForValue().get(code);
+	if(cacheURL!=null) {
+		System.out.println("Entered in redis");
+		return cacheURL;
+	}
+	 String longURL =urlRepo.findByShortCodeString(code).map(URLEntity::getLongURLString).orElseThrow(()->new RuntimeException("Long url not found"));
+	 
+	 stringRedisTemplate.opsForValue().set(code, longURL,1,TimeUnit.HOURS);
+	 return longURL;
 }
 }

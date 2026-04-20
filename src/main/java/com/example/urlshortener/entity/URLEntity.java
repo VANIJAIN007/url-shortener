@@ -11,7 +11,7 @@ public class URLEntity {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	
-	private String longURLString;
+	private String longURLString;	
 	
 	private String shortCodeString;
 
